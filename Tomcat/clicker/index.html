@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clicker Questions</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Modern font */
+            background-image: url("MainpageBackground.jpg");
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            text-align: center;
+            color: #343a40; /* Dark gray text */
+            margin-bottom: 30px;
+        }
+
+        .controls-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .controls-container button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            transition: background-color 0.3s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        #startSessionBtn {
+            background-color: #28a745; /* Green */
+        }
+
+        #startSessionBtn:disabled {
+            background-color: #6c757d; /* Gray when disabled */
+            cursor: not-allowed;
+        }
+
+        #startSessionBtn:hover:enabled {
+            background-color: #1e7e34;
+        }
+
+        #stopSessionBtn {
+            background-color: #dc3545; /* Red */
+        }
+
+        #stopSessionBtn:disabled {
+            background-color: #6c757d; /* Gray when disabled */
+            cursor: not-allowed;
+        }
+
+        #stopSessionBtn:hover:enabled {
+            background-color: #c82333;
+        }
+
+        #session-status {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #495057; /* Medium gray */
+        }
+
+        .questions-container {
+            max-width: 1000px; /* Wider container */
+            width: 95%; /* Adjust width for responsiveness */
+            overflow-y: auto;
+            padding: 25px;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            margin-bottom: 30px;
+        }
+
+        .question-block {
+            border-bottom: 1px solid #e9ecef; /* Light border */
+            padding: 25px 0;
+        }
+
+        .question-block:last-child {
+            border-bottom: none;
+        }
+
+        .question-text {
+            font-weight: bold;
+            font-size: 20px; /* Larger question text */
+            margin-bottom: 15px;
+            color: #212529; /* Darker text */
+        }
+
+        .options {
+            display: grid; /* Use grid for better layout */
+            grid-template-columns: 1fr; /* Single column for options */
+            gap: 12px;
+        }
+
+        .options button {
+            width: 100%;
+            text-align: left;
+            padding: 15px 20px;
+            font-size: 16px;
+            background-color: #007bff; /* Primary blue */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .options button:hover {
+            background-color: #0056b3;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .options button.selected {
+            background-color: #28a745; /* Green for selected */
+            color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <h1>The Big Question</h1>
+
+    <div class="controls-container">
+        <button id="startSessionBtn">Start Session</button>
+        <button id="stopSessionBtn" disabled>Stop Session</button>
+    </div>
+
+    <div id="session-status">Session Status: Stopped</div>
+
+    <div id="questions-container" class="questions-container"></div>
+
+    <script>
+        const startSessionBtn = document.getElementById('startSessionBtn');
+        const stopSessionBtn = document.getElementById('stopSessionBtn');
+        const sessionStatusDiv = document.getElementById('session-status');
+        const questionsContainer = document.getElementById('questions-container');
+        let currentQuestionId = null; // To track the current question's ID
+
+        startSessionBtn.addEventListener('click', () => {
+            fetch('/clicker/startSession')
+                .then(response => response.text())
+                .then(data => {
+                    sessionStatusDiv.textContent = 'Session Status: Started';
+                    startSessionBtn.disabled = true;
+                    stopSessionBtn.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error starting session:', error);
+                    sessionStatusDiv.textContent = 'Error starting session';
+                });
+        });
+
+        stopSessionBtn.addEventListener('click', () => {
+            fetch('/clicker/stopSession')
+                .then(response => response.text())
+                .then(data => {
+                    sessionStatusDiv.textContent = 'Session Status: Stopped';
+                    startSessionBtn.disabled = false;
+                    stopSessionBtn.disabled = true;
+                })
+                .catch(error => {
+                    console.error('Error stopping session:', error);
+                    sessionStatusDiv.textContent = 'Error stopping session';
+                });
+        });
+
+        function submitAnswer(choice) {
+            if (currentQuestionId) {
+                // Visually indicate selection
+                const options = document.querySelectorAll(`.question-block[data-question-id="${currentQuestionId}"] .options button`);
+                options.forEach(button => button.classList.remove('selected'));
+                const selectedButton = document.querySelector(`.question-block[data-question-id="${currentQuestionId}"] .options button:nth-child(${choice.charCodeAt(0) - 96})`); // 'a' -> 1, 'b' -> 2, etc.
+                if (selectedButton) {
+                    selectedButton.classList.add('selected');
+                }
+
+                fetch(`/clicker/select?choice=${choice}&userId=user_${Date.now()}&questionId=${currentQuestionId}`)
+                    .then(response => response.text())
+                    .then(data => console.log(data))
+                    .catch(error => console.error("Error submitting answer:", error));
+            } else {
+                console.warn("No current question ID to submit answer for.");
+            }
+        }
+
+        async function fetchQuestions() {
+            try {
+                const response = await fetch('/clicker/getQuestions');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                questionsContainer.innerHTML = '';
+
+                data.forEach((question) => {
+                    const block = document.createElement('div');
+                    block.className = 'question-block';
+                    block.dataset.questionId = question.id;
+                    currentQuestionId = question.id; // Set the current question ID to the first one loaded
+
+                    block.innerHTML = `
+                        <div class="question-text">${question.question_text}</div>
+                        <div class="options">
+                            <button onclick="submitAnswer('a')">A: ${question.option_a}</button>
+                            <button onclick="submitAnswer('b')">B: ${question.option_b}</button>
+                            <button onclick="submitAnswer('c')">C: ${question.option_c}</button>
+                            <button onclick="submitAnswer('d')">D: ${question.option_d}</button>
+                        </div>
+                    `;
+                    questionsContainer.appendChild(block);
+                });
+
+                // Reset currentQuestionId after loading all questions (if you only display one at a time, adjust logic)
+                if (data.length > 0) {
+                    currentQuestionId = data[0].id;
+                } else {
+                    currentQuestionId = null;
+                }
+
+            } catch (error) {
+                console.error("Error fetching questions:", error);
+                questionsContainer.innerText = "Failed to load questions.";
+            }
+        }
+
+        function checkSessionStatus() {
+            fetch('/clicker/getSessionStatus')
+                .then(response => response.text())
+                .then(data => {
+                    if (data === 'active') {
+                        sessionStatusDiv.textContent = 'Session Status: Started';
+                        startSessionBtn.disabled = true;
+                        stopSessionBtn.disabled = false;
+                    } else {
+                        sessionStatusDiv.textContent = 'Session Status: Stopped';
+                        startSessionBtn.disabled = false;
+                        stopSessionBtn.disabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking session status:', error);
+                    sessionStatusDiv.textContent = 'Error checking status';
+                });
+        }
+
+        window.onload = () => {
+            fetchQuestions();
+            checkSessionStatus();
+        };
+    </script>
+</body>
+</html>
